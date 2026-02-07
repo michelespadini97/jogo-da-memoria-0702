@@ -423,7 +423,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     .from('scores')
     .select('*')
     .eq('name', currentPlayer)
-    .single();
+    .maybeSingle()
 
   // se não existe → cria
   if (!existing) {
