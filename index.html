@@ -181,7 +181,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
         <div id="game-board" class="grid gap-2 md:gap-4 w-full max-w-3xl mx-auto transition-all duration-300"></div>
 
-        <div id="feedback-msg" class="h-6 mt-4 text-red-400 font-bold opacity-0 transition-opacity">Perdeu, mermão!</div>
+        <div id="feedback-msg" class="h-6 mt-4 text-red-400 font-bold opacity-0 transition-opacity">Erroooou!</div>
     </div>
 
     <!-- MODAL DE RESULTADO / RANKING -->
@@ -530,7 +530,11 @@ async function endGame(victory) {
     let score = victory ? calculateScore() : 0;
 
     if (victory) {
-        await saveScore(score);
+        try {
+            await saveScore(score);
+        } catch (e) {
+            console.error("erro ao salvar:", e);
+        }
     }
 
     setTimeout(() => {
@@ -538,6 +542,7 @@ async function endGame(victory) {
         if (victory) launchConfetti();
     }, 500);
 }
+
 
 
         async function showModal(victory, score) {
