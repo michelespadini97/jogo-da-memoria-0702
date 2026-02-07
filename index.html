@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo da Memória Festivo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap');
+
+        body {
+            font-family: 'Fredoka', sans-serif;
+            background: linear-gradient(135deg, #1a1c2c 0%, #4a192c 100%);
+            overflow-x: hidden;
+        }
+
+        /* Animações e Efeitos */
+        .card {
+            perspective: 1000px;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .card.flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .card-front, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-front {
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            color: white;
+            font-size: 2rem;
+            transform: rotateY(0deg);
+            border: 2px solid rgba(255,255,255,0.2);
+        }
+        
+        .card-front::after {
+            content: '?';
+            font-weight: bold;
+            opacity: 0.8;
+        }
+
+        .card-back {
+            background-color: #fff;
+            transform: rotateY(180deg);
+            border: 4px solid #feca57;
+            font-size: 2rem;
+        }
+
+        @media (min-width: 768px) {
+            .card-back { font-size: 2.5rem; }
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f00;
+            animation: fall linear forwards;
+            z-index: 50;
+        }
+
+        @keyframes fall {
+            to { transform: translateY(100vh) rotate(720deg); }
+        }
+
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        .pop-anim {
+            animation: pop 0.3s ease-out;
+        }
+
+        .grid-easy { grid-template-columns: repeat(3, 1fr); }
+        .grid-medium { grid-template-columns: repeat(4, 1fr); }
+        .grid-hard { grid-template-columns: repeat(4, 1fr); }
+        
+        @media (min-width: 768px) {
+            .grid-easy { grid-template-columns: repeat(4, 1fr); }
+            .grid-medium { grid-template-columns: repeat(4, 1fr); }
+            .grid-hard { grid-template-columns: repeat(6, 1fr); }
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-center p-4 text-white transition-colors duration-500">
+
+    <!-- TELA INICIAL (MENU) -->
+    <div id="start-screen" class="flex flex-col items-center justify-center w-full max-w-md animate-fade-in relative z-10">
+        <h1 class="text-5xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-pink-500 text-center">
+            Memória Festiva
+        </h1>
+        <p class="text-white/80 mb-6 text-center">Quem fará a maior pontuação? 🏆</p>
+
+        <div class="w-full px-4 mb-6">
+            <label class="block text-sm font-bold mb-2 text-white/70">Seu Nome:</label>
+            <input type="text" id="player-name-input" placeholder="Digite seu apelido..." maxlength="12"
+                class="w-full px-4 py-3 rounded-xl bg-white/10 border-2 border-white/20 text-white placeholder-white/40 focus:outline-none focus:border-yellow-400 focus:bg-white/20 transition text-center text-lg font-bold">
+        </div>
+
+        <div class="space-y-4 w-full px-4">
+            <button onclick="startGame('easy')" class="w-full py-4 bg-green-500 hover:bg-green-600 rounded-xl font-bold text-xl shadow-lg transform transition hover:scale-105 active:scale-95 flex justify-between px-6 items-center group">
+                <span class="group-hover:translate-x-1 transition">🟢 Fácil</span>
+                <span class="text-sm opacity-70 font-normal">x1.0 Pontos</span>
+            </button>
+            <button onclick="startGame('medium')" class="w-full py-4 bg-yellow-500 hover:bg-yellow-600 rounded-xl font-bold text-xl shadow-lg transform transition hover:scale-105 active:scale-95 flex justify-between px-6 items-center group">
+                <span class="group-hover:translate-x-1 transition">🟡 Médio</span>
+                <span class="text-sm opacity-70 font-normal">x1.5 Pontos</span>
+            </button>
+            <button onclick="startGame('hard')" class="w-full py-4 bg-red-500 hover:bg-red-600 rounded-xl font-bold text-xl shadow-lg transform transition hover:scale-105 active:scale-95 flex justify-between px-6 items-center group">
+                <span class="group-hover:translate-x-1 transition">🔴 Difícil</span>
+                <span class="text-sm opacity-70 font-normal">x2.0 Pontos</span>
+            </button>
+        </div>
+
+        <button onclick="showRanking()" class="mt-6 text-white/60 hover:text-white underline text-sm transition">
+            Ver Ranking Atual
+        </button>
+    </div>
+
+    <!-- TELA DO JOGO -->
+    <div id="game-container" class="hidden flex-col items-center w-full max-w-4xl relative z-10">
+        <header class="w-full flex justify-between items-center mb-6 max-w-lg">
+            <button onclick="returnToMenu()" class="text-white/70 hover:text-white flex items-center gap-1 text-sm font-bold bg-white/10 px-3 py-2 rounded-lg backdrop-blur-sm">
+                ← Sair
+            </button>
+            <div class="text-center">
+                <h2 id="level-title" class="text-xl md:text-2xl font-bold text-yellow-400">Nível Fácil</h2>
+                <div id="player-display" class="text-xs text-white/60 font-bold">Jogador: ---</div>
+            </div>
+            <div class="w-16"></div>
+        </header>
+
+        <div class="flex gap-4 md:gap-8 mb-6 w-full max-w-lg justify-center">
+            <div class="bg-white/10 px-4 py-2 rounded-xl backdrop-blur-sm shadow-lg text-center min-w-[100px]">
+                <span class="block text-xs uppercase tracking-wider opacity-70 text-red-300">Vidas</span>
+                <span id="lives-display" class="text-2xl font-bold font-mono text-red-400">15</span>
+            </div>
+            <div class="bg-white/10 px-4 py-2 rounded-xl backdrop-blur-sm shadow-lg text-center min-w-[100px]">
+                <span class="block text-xs uppercase tracking-wider opacity-70 text-blue-300">Tempo</span>
+                <span id="time" class="text-2xl font-bold font-mono">00:00</span>
+            </div>
+        </div>
+
+        <div id="game-board" class="grid gap-2 md:gap-4 w-full max-w-3xl mx-auto transition-all duration-300"></div>
+
+        <div id="feedback-msg" class="h-6 mt-4 text-red-400 font-bold opacity-0 transition-opacity">Ops! Tente novamente.</div>
+    </div>
+
+    <!-- MODAL DE RESULTADO / RANKING -->
+    <div id="result-modal" class="fixed inset-0 bg-black/90 flex items-center justify-center z-50 hidden opacity-0 transition-opacity duration-300 backdrop-blur-sm">
+        <div class="bg-white text-gray-800 p-6 rounded-2xl max-w-sm w-full text-center shadow-2xl transform scale-90 transition-transform duration-300 relative overflow-hidden flex flex-col max-h-[90vh]" id="modal-content">
+            <div id="game-over-content">
+                <div id="modal-icon" class="text-6xl mb-2 block">🏆</div>
+                <h2 id="modal-title" class="text-3xl font-bold mb-1 text-purple-600">Fim de Jogo</h2>
+                <p id="modal-msg" class="mb-4 text-gray-600 text-sm">Resultado...</p>
+                <div id="score-box" class="hidden bg-yellow-100 p-3 rounded-xl mb-4 border-2 border-yellow-300">
+                    <span class="block text-xs text-yellow-800 font-bold uppercase">Sua Pontuação</span>
+                    <span id="final-score" class="text-3xl font-black text-yellow-600">0</span>
+                </div>
+            </div>
+
+            <div id="ranking-section" class="flex-1 overflow-hidden flex flex-col mb-4">
+                <h3 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2 border-b pb-1">Top Jogadores</h3>
+                <div class="overflow-y-auto scrollbar-hide flex-1 bg-gray-50 rounded-lg p-2 shadow-inner" id="ranking-list">
+                    <div class="text-gray-400 text-sm py-4">Nenhum recorde ainda...</div>
+                </div>
+            </div>
+
+            <div class="space-y-2 mt-auto">
+                <button id="btn-replay" class="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition transform hover:scale-105 active:scale-95">
+                    Jogar Novamente 🔄
+                </button>
+                <button onclick="returnToMenu()" class="w-full py-3 bg-gray-200 text-gray-700 font-bold rounded-xl shadow-sm hover:bg-gray-300 transition active:scale-95">
+                    Voltar ao Menu
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const allEmojis = ['🥳', '✨', '🎉', '🎊', '💃🏼', '🥂', '🎈', '🎁', '🎂', '🎵', '🕺', '🍾'];
+        const levels = {
+            easy: { name: 'Nível Fácil', pairs: 6, lives: 15, gridClass: 'grid-easy', multiplier: 1.0 },
+            medium: { name: 'Nível Médio', pairs: 8, lives: 12, gridClass: 'grid-medium', multiplier: 1.5 },
+            hard: { name: 'Nível Difícil', pairs: 12, lives: 10, gridClass: 'grid-hard', multiplier: 2.0 }
+        };
+
+        let currentLevel = 'easy';
+        let currentPlayer = 'Jogador';
+        let cards = [];
+        let hasFlippedCard = false;
+        let lockBoard = false;
+        let firstCard, secondCard;
+        let lives = 0;
+        let matches = 0;
+        let timerInterval;
+        let seconds = 0;
+        let gameActive = false;
+        let highScores = [];
+
+        const startScreen = document.getElementById('start-screen');
+        const gameContainer = document.getElementById('game-container');
+        const board = document.getElementById('game-board');
+        const livesDisplay = document.getElementById('lives-display');
+        const timeDisplay = document.getElementById('time');
+        const levelTitle = document.getElementById('level-title');
+        const playerDisplay = document.getElementById('player-display');
+        const nameInput = document.getElementById('player-name-input');
+        const resultModal = document.getElementById('result-modal');
+        const modalContent = document.getElementById('modal-content');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMsg = document.getElementById('modal-msg');
+        const modalIcon = document.getElementById('modal-icon');
+        const gameOverContent = document.getElementById('game-over-content');
+        const scoreBox = document.getElementById('score-box');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const rankingList = document.getElementById('ranking-list');
+        const btnReplay = document.getElementById('btn-replay');
+        const feedbackMsg = document.getElementById('feedback-msg');
+
+        function startGame(levelKey) {
+            currentPlayer = nameInput.value.trim() || 'Anônimo';
+            playerDisplay.innerText = `Jogador: ${currentPlayer}`;
+            currentLevel = levelKey;
+            const config = levels[levelKey];
+
+            startScreen.classList.add('hidden');
+            gameContainer.classList.remove('hidden');
+            gameContainer.classList.add('flex');
+            resultModal.classList.add('hidden');
+
+            lives = config.lives;
+            matches = 0;
+            seconds = 0;
+            gameActive = true;
+            resetCardState();
+            
+            levelTitle.innerText = config.name;
+            livesDisplay.innerText = lives;
+            livesDisplay.className = `text-2xl font-bold font-mono text-green-400`;
+            timeDisplay.innerText = '00:00';
+            feedbackMsg.style.opacity = '0';
+
+            generateCards(config.pairs);
+            setupGrid(config.gridClass);
+            startTimer();
+        }
+
+        function returnToMenu() {
+            gameActive = false;
+            clearInterval(timerInterval);
+            resetCardState();
+            resultModal.classList.add('hidden');
+            resultModal.classList.add('opacity-0');
+            gameContainer.classList.add('hidden');
+            gameContainer.classList.remove('flex');
+            startScreen.classList.remove('hidden');
+        }
+
+        function resetCardState() {
+            hasFlippedCard = false;
+            lockBoard = false;
+            firstCard = null;
+            secondCard = null;
+        }
+
+        function generateCards(numPairs) {
+            const gameEmojis = allEmojis.slice(0, numPairs);
+            cards = [...gameEmojis, ...gameEmojis];
+            shuffle(cards);
+            board.innerHTML = '';
+            cards.forEach((emoji) => {
+                const card = document.createElement('div');
+                card.classList.add('card', 'h-24', 'md:h-28');
+                if (currentLevel === 'hard') card.classList.add('h-20', 'md:h-24');
+                card.innerHTML = `<div class="card-inner"><div class="card-front"></div><div class="card-back">${emoji}</div></div>`;
+                card.addEventListener('click', flipCard);
+                card.dataset.emoji = emoji;
+                board.appendChild(card);
+            });
+        }
+
+        function setupGrid(gridClass) {
+            board.className = `grid gap-2 md:gap-4 w-full max-w-3xl mx-auto transition-all duration-300 ${gridClass}`;
+        }
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function flipCard() {
+            if (lockBoard || !gameActive || this === firstCard) return;
+            this.classList.add('flipped');
+            if (!hasFlippedCard) {
+                hasFlippedCard = true;
+                firstCard = this;
+                return;
+            }
+            secondCard = this;
+            checkForMatch();
+        }
+
+        function checkForMatch() {
+            let isMatch = firstCard.dataset.emoji === secondCard.dataset.emoji;
+            if (isMatch) {
+                disableCards();
+                matches++;
+                if (matches === levels[currentLevel].pairs) endGame(true);
+            } else {
+                unflipCards();
+            }
+        }
+
+        function disableCards() {
+            // Referências locais para evitar erros caso as globais sejam limpas antes do timeout
+            const cardA = firstCard;
+            const cardB = secondCard;
+            cardA.removeEventListener('click', flipCard);
+            cardB.removeEventListener('click', flipCard);
+            setTimeout(() => {
+                // Verificação de segurança: as cartas ainda estão no DOM?
+                if (cardA && cardB && cardA.parentNode && cardB.parentNode) {
+                    const backA = cardA.querySelector('.card-back');
+                    const backB = cardB.querySelector('.card-back');
+                    if(backA) backA.style.backgroundColor = '#d1fae5';
+                    if(backB) backB.style.backgroundColor = '#d1fae5';
+                    cardA.classList.add('pop-anim');
+                    cardB.classList.add('pop-anim');
+                }
+            }, 200);
+            resetBoard();
+        }
+
+        function unflipCards() {
+            lockBoard = true;
+            decreaseLives();
+            const cardA = firstCard;
+            const cardB = secondCard;
+            setTimeout(() => {
+                if (cardA && cardB && gameActive) {
+                    cardA.classList.remove('flipped');
+                    cardB.classList.remove('flipped');
+                }
+                resetBoard();
+            }, 1000);
+        }
+
+        function decreaseLives() {
+            lives--;
+            livesDisplay.innerText = lives;
+            feedbackMsg.style.opacity = '1';
+            setTimeout(() => feedbackMsg.style.opacity = '0', 800);
+            if (lives <= 3) livesDisplay.className = 'text-2xl font-bold font-mono text-red-600 animate-pulse';
+            if (lives === 0) endGame(false);
+        }
+
+        function resetBoard() {
+            [hasFlippedCard, lockBoard] = [false, false];
+            [firstCard, secondCard] = [null, null];
+        }
+
+        function startTimer() {
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if(!gameActive) return;
+                seconds++;
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                timeDisplay.innerText = `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+            }, 1000);
+        }
+
+        function calculateScore() {
+            let baseScore = (lives * 100) + (levels[currentLevel].pairs * 50); 
+            let finalScore = Math.max(0, Math.floor((baseScore - (seconds * 2)) * levels[currentLevel].multiplier));
+            return finalScore;
+        }
+
+        function saveScore(score) {
+            highScores.push({ name: currentPlayer, score: score, level: levels[currentLevel].name });
+            highScores.sort((a, b) => b.score - a.score);
+            highScores = highScores.slice(0, 10);
+        }
+
+        function renderRanking() {
+            if (highScores.length === 0) {
+                rankingList.innerHTML = '<div class="text-gray-400 text-sm py-4">Nenhum recorde ainda... Jogue agora!</div>';
+                return;
+            }
+            let html = '<table class="w-full text-left text-sm"><thead class="text-gray-400 border-b border-gray-200"><tr><th>#</th><th>Nome</th><th>Nível</th><th class="text-right">Pts</th></tr></thead><tbody>';
+            highScores.forEach((entry, index) => {
+                let medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}º`;
+                html += `<tr class="border-b border-gray-100 last:border-0 hover:bg-gray-100 transition"><td class="py-2 font-bold">${medal}</td><td class="py-2 font-semibold truncate max-w-[80px]">${entry.name}</td><td class="py-2 text-xs">${entry.level.replace('Nível ', '')}</td><td class="py-2 font-bold text-purple-600 text-right">${entry.score}</td></tr>`;
+            });
+            rankingList.innerHTML = html + '</tbody></table>';
+        }
+
+        function showRanking() {
+            gameOverContent.classList.add('hidden');
+            renderRanking();
+            resultModal.classList.remove('hidden');
+            setTimeout(() => {
+                resultModal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-90');
+                modalContent.classList.add('scale-100');
+            }, 10);
+            btnReplay.innerText = "Fechar";
+            btnReplay.onclick = () => {
+                resultModal.classList.add('opacity-0');
+                modalContent.classList.remove('scale-100');
+                setTimeout(() => {
+                    resultModal.classList.add('hidden');
+                    gameOverContent.classList.remove('hidden');
+                }, 300);
+            };
+        }
+
+        function endGame(victory) {
+            gameActive = false;
+            clearInterval(timerInterval);
+            let score = victory ? calculateScore() : 0;
+            if (victory) saveScore(score);
+            setTimeout(() => {
+                showModal(victory, score);
+                if (victory) launchConfetti();
+            }, 500);
+        }
+
+        function showModal(victory, score) {
+            gameOverContent.classList.remove('hidden');
+            resultModal.classList.remove('hidden');
+            setTimeout(() => {
+                resultModal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-90');
+                modalContent.classList.add('scale-100');
+            }, 10);
+            renderRanking();
+            btnReplay.innerText = "Jogar Novamente 🔄";
+            btnReplay.onclick = () => startGame(currentLevel);
+            if (victory) {
+                modalIcon.innerHTML = '✨🎉✨';
+                modalTitle.innerText = 'Parabéns!';
+                modalTitle.className = 'text-3xl font-bold mb-1 text-green-600';
+                modalMsg.innerHTML = `Você completou o <b>${levels[currentLevel].name}</b>!`;
+                scoreBox.classList.remove('hidden');
+                finalScoreDisplay.innerText = score;
+            } else {
+                modalIcon.innerHTML = '💔';
+                modalTitle.innerText = 'Fim de Jogo';
+                modalTitle.className = 'text-3xl font-bold mb-1 text-red-500';
+                modalMsg.innerHTML = `Faltaram ${levels[currentLevel].pairs - matches} pares. Tente de novo!`;
+                scoreBox.classList.add('hidden');
+            }
+        }
+
+        function launchConfetti() {
+            const colors = ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff'];
+            for (let i = 0; i < 60; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animationDuration = Math.random() * 3 + 2 + 's';
+                document.body.appendChild(confetti);
+                setTimeout(() => confetti.remove(), 5000);
+            }
+        }
+    </script>
+</body>
+</html>
