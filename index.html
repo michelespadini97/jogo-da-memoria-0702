@@ -418,16 +418,37 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
         }
 
         async function saveScore(score) {
-  await supabase
+  // verifica se já existe alguém com esse nome
+  const { data: existing } = await supabase
     .from('scores')
-    .insert([
+    .select('*')
+    .eq('name', currentPlayer)
+    .single();
+
+  // se não existe → cria
+  if (!existing) {
+    await supabase.from('scores').insert([
       {
         name: currentPlayer,
         points: score,
         level: levels[currentLevel].name
       }
     ]);
+    return;
+  }
+
+  // se existe mas a nova pontuação é maior → atualiza
+  if (score > existing.points) {
+    await supabase
+      .from('scores')
+      .update({
+        points: score,
+        level: levels[currentLevel].name
+      })
+      .eq('name', currentPlayer);
+  }
 }
+
 
         async function loadRanking() {
   const { data, error } = await supabase
@@ -450,9 +471,17 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   renderRanking();
 }
 
+        function showRankingLoading() {
+    rankingList.innerHTML = `
+        <div class="text-gray-400 text-sm py-4 animate-pulse">
+            Um minutinho, pufavô...
+        </div>
+    `;
+}
+
         function renderRanking() {
     if (highScores.length === 0) {
-        rankingList.innerHTML = '<div class="text-gray-400 text-sm py-4">Nenhum recorde ainda... Jogue agora!</div>';
+        rankingList.innerHTML = '<div class="text-gray-400 text-sm py-4">Nenhum recorde ainda... Vai jogar!</div>';
         return;
     }
 
@@ -475,6 +504,7 @@ const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 async function showRanking() {
     gameOverContent.classList.add('hidden');
+    showRankingLoading();
     await loadRanking();
     resultModal.classList.remove('hidden');
     setTimeout(() => {
@@ -519,7 +549,7 @@ async function endGame(victory) {
         modalContent.classList.remove('scale-90');
         modalContent.classList.add('scale-100');
     }, 10);
-
+    showRankingLoading();
     await loadRanking();
 
     btnReplay.innerText = "Jogar Novamente 🔄";
