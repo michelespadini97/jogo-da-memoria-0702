@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jogo da Memória Carnavalesco 🎉</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+const SUPABASE_URL = 'https://cppngqusahowiudbiyih.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwcG5ncXVzYWhvd2l1ZGJpeWloIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0OTk4MzEsImV4cCI6MjA4NjA3NTgzMX0.TlFd2mUc7FfPz7rDVbIToQOdATCBgrVLcdxMGs0Cx5k';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+</script>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap');
@@ -411,82 +417,130 @@
             return finalScore;
         }
 
-        function saveScore(score) {
-            highScores.push({ name: currentPlayer, score: score, level: levels[currentLevel].name });
-            highScores.sort((a, b) => b.score - a.score);
-            highScores = highScores.slice(0, 10);
-        }
+        async function saveScore(score) {
+  await supabase
+    .from('scores')
+    .insert([
+      {
+        name: currentPlayer,
+        points: score,
+        level: levels[currentLevel].name
+      }
+    ]);
+}
+
+        async function loadRanking() {
+  const { data, error } = await supabase
+    .from('scores')
+    .select('*')
+    .order('points', { ascending: false })
+    .limit(10);
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  highScores = data.map(item => ({
+    name: item.name,
+    score: item.points,
+    level: item.level
+  }));
+
+  renderRanking();
+}
 
         function renderRanking() {
-            if (highScores.length === 0) {
-                rankingList.innerHTML = '<div class="text-gray-400 text-sm py-4">Nenhum recorde ainda... Jogue agora!</div>';
-                return;
-            }
-            let html = '<table class="w-full text-left text-sm"><thead class="text-gray-400 border-b border-gray-200"><tr><th>#</th><th>Nome</th><th>Nível</th><th class="text-right">Pts</th></tr></thead><tbody>';
-            highScores.forEach((entry, index) => {
-                let medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}º`;
-                html += `<tr class="border-b border-gray-100 last:border-0 hover:bg-gray-100 transition"><td class="py-2 font-bold">${medal}</td><td class="py-2 font-semibold truncate max-w-[80px]">${entry.name}</td><td class="py-2 text-xs">${entry.level.replace('Nível ', '')}</td><td class="py-2 font-bold text-purple-600 text-right">${entry.score}</td></tr>`;
-            });
-            rankingList.innerHTML = html + '</tbody></table>';
-        }
+    if (highScores.length === 0) {
+        rankingList.innerHTML = '<div class="text-gray-400 text-sm py-4">Nenhum recorde ainda... Jogue agora!</div>';
+        return;
+    }
 
-        function showRanking() {
-            gameOverContent.classList.add('hidden');
-            renderRanking();
-            resultModal.classList.remove('hidden');
-            setTimeout(() => {
-                resultModal.classList.remove('opacity-0');
-                modalContent.classList.remove('scale-90');
-                modalContent.classList.add('scale-100');
-            }, 10);
-            btnReplay.innerText = "Fechar";
-            btnReplay.onclick = () => {
-                resultModal.classList.add('opacity-0');
-                modalContent.classList.remove('scale-100');
-                setTimeout(() => {
-                    resultModal.classList.add('hidden');
-                    gameOverContent.classList.remove('hidden');
-                }, 300);
-            };
-        }
+    let html = '<table class="w-full text-left text-sm"><thead class="text-gray-400 border-b border-gray-200"><tr><th>#</th><th>Nome</th><th>Nível</th><th class="text-right">Pts</th></tr></thead><tbody>';
 
-        function endGame(victory) {
-            gameActive = false;
-            clearInterval(timerInterval);
-            let score = victory ? calculateScore() : 0;
-            if (victory) saveScore(score);
-            setTimeout(() => {
-                showModal(victory, score);
-                if (victory) launchConfetti();
-            }, 500);
-        }
+    highScores.forEach((entry, index) => {
+        let medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}º`;
 
-        function showModal(victory, score) {
+        html += `<tr class="border-b border-gray-100 last:border-0 hover:bg-gray-100 transition">
+                    <td class="py-2 font-bold">${medal}</td>
+                    <td class="py-2 font-semibold truncate max-w-[80px]">${entry.name}</td>
+                    <td class="py-2 text-xs">${entry.level.replace('Nível ', '')}</td>
+                    <td class="py-2 font-bold text-purple-600 text-right">${entry.score}</td>
+                </tr>`;
+    });
+
+    rankingList.innerHTML = html + '</tbody></table>';
+}
+
+
+async function showRanking() {
+    gameOverContent.classList.add('hidden');
+    await loadRanking();
+    resultModal.classList.remove('hidden');
+    setTimeout(() => {
+        resultModal.classList.remove('opacity-0');
+        modalContent.classList.remove('scale-90');
+        modalContent.classList.add('scale-100');
+    }, 10);
+    btnReplay.innerText = "Fechar";
+    btnReplay.onclick = () => {
+        resultModal.classList.add('opacity-0');
+        modalContent.classList.remove('scale-100');
+        setTimeout(() => {
+            resultModal.classList.add('hidden');
             gameOverContent.classList.remove('hidden');
-            resultModal.classList.remove('hidden');
-            setTimeout(() => {
-                resultModal.classList.remove('opacity-0');
-                modalContent.classList.remove('scale-90');
-                modalContent.classList.add('scale-100');
-            }, 10);
-            renderRanking();
-            btnReplay.innerText = "Jogar Novamente 🔄";
-            btnReplay.onclick = () => startGame(currentLevel);
-            if (victory) {
-                modalIcon.innerHTML = '✨🎉✨';
-                modalTitle.innerText = 'Parabéns!';
-                modalTitle.className = 'text-3xl font-bold mb-1 text-green-600';
-                modalMsg.innerHTML = `Você completou o <b>${levels[currentLevel].name}</b>!`;
-                scoreBox.classList.remove('hidden');
-                finalScoreDisplay.innerText = score;
-            } else {
-                modalIcon.innerHTML = '💔';
-                modalTitle.innerText = 'Perdeu, mermão!';
-                modalTitle.className = 'text-3xl font-bold mb-1 text-red-500';
-                modalMsg.innerHTML = `Faltaram ${levels[currentLevel].pairs - matches} pares. Tente de novo!`;
-                scoreBox.classList.add('hidden');
-            }
-        }
+        }, 300);
+    };
+}
+
+async function endGame(victory) {
+    gameActive = false;
+    clearInterval(timerInterval);
+
+    let score = victory ? calculateScore() : 0;
+
+    if (victory) {
+        await saveScore(score);
+    }
+
+    setTimeout(() => {
+        showModal(victory, score);
+        if (victory) launchConfetti();
+    }, 500);
+}
+
+
+        async function showModal(victory, score) {
+    gameOverContent.classList.remove('hidden');
+    resultModal.classList.remove('hidden');
+
+    setTimeout(() => {
+        resultModal.classList.remove('opacity-0');
+        modalContent.classList.remove('scale-90');
+        modalContent.classList.add('scale-100');
+    }, 10);
+
+    await loadRanking();
+
+    btnReplay.innerText = "Jogar Novamente 🔄";
+    btnReplay.onclick = () => startGame(currentLevel);
+
+    if (victory) {
+        modalIcon.innerHTML = '✨🎉✨';
+        modalTitle.innerText = 'Parabéns!';
+        modalTitle.className = 'text-3xl font-bold mb-1 text-green-600';
+        modalMsg.innerHTML = `Você completou o <b>${levels[currentLevel].name}</b>!`;
+        scoreBox.classList.remove('hidden');
+        finalScoreDisplay.innerText = score;
+    } else {
+        modalIcon.innerHTML = '💔';
+        modalTitle.innerText = 'Perdeu, mermão!';
+        modalTitle.className = 'text-3xl font-bold mb-1 text-red-500';
+        modalMsg.innerHTML = `Faltaram ${levels[currentLevel].pairs - matches} pares. Tente de novo!`;
+        scoreBox.classList.add('hidden');
+    }
+}
+
 
         function launchConfetti() {
             const colors = ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff'];
