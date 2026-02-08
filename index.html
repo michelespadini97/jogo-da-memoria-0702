@@ -223,8 +223,8 @@ const db = window.supabase.createClient(
         const allEmojis = ['🥳', '✨', '🎉', '🎊', '💃🏼', '🍻', '🎈', '🌈', '👯‍♂️', '🎵', '🕺', '🍹'];
         const levels = {
             easy: { name: 'Nível Fácil', pairs: 6, lives: 15, gridClass: 'grid-easy', multiplier: 1.0 },
-            medium: { name: 'Nível Médio', pairs: 8, lives: 12, gridClass: 'grid-medium', multiplier: 1.5 },
-            hard: { name: 'Nível Difícil', pairs: 12, lives: 10, gridClass: 'grid-hard', multiplier: 2.0 }
+            medium: { name: 'Nível Médio', pairs: 8, lives: 14, gridClass: 'grid-medium', multiplier: 1.5 },
+hard: { name: 'Nível Difícil', pairs: 12, lives: 12, gridClass: 'grid-hard', multiplier: 2.0 }
         };
 
         let currentLevel = 'easy';
@@ -285,6 +285,7 @@ const db = window.supabase.createClient(
 
             generateCards(config.pairs);
             setupGrid(config.gridClass);
+            previewCards(3);
             startTimer();
         }
 
@@ -332,6 +333,18 @@ const db = window.supabase.createClient(
                 [array[i], array[j]] = [array[j], array[i]];
             }
         }
+
+function previewCards(seconds = 3) {
+    lockBoard = true;
+
+    const allCards = document.querySelectorAll('.card');
+    allCards.forEach(card => card.classList.add('flipped'));
+
+    setTimeout(() => {
+        allCards.forEach(card => card.classList.remove('flipped'));
+        lockBoard = false;
+    }, seconds * 1000);
+}
 
         function flipCard() {
             if (lockBoard || !gameActive || this === firstCard) return;
