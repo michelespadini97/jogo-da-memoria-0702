@@ -9,12 +9,11 @@
 const SUPABASE_URL = 'https://cppngqusahowiudbiyih.supabase.co';
 const SUPABASE_KEY = 'SUA_KEY_AQUI';
 
-const supabaseClient = window.supabase.createClient(
+const db = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_KEY
 );
 </script>
-
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600&display=swap');
@@ -423,16 +422,14 @@ const supabaseClient = window.supabase.createClient(
         }
 
         async function saveScore(score) {
-  // verifica se já existe alguém com esse nome
-  const { data: existing } = await supabaseClient
+  const { data: existing } = await db
     .from('scores')
     .select('*')
     .eq('name', currentPlayer)
-    .maybeSingle()
+    .maybeSingle();
 
-  // se não existe → cria
   if (!existing) {
-    await supabaseClient.from('scores').insert([
+    await db.from('scores').insert([
       {
         name: currentPlayer,
         points: score,
@@ -442,9 +439,8 @@ const supabaseClient = window.supabase.createClient(
     return;
   }
 
-  // se existe mas a nova pontuação é maior → atualiza
   if (score > existing.points) {
-    await supabaseClient
+    await db
       .from('scores')
       .update({
         points: score,
@@ -454,9 +450,8 @@ const supabaseClient = window.supabase.createClient(
   }
 }
 
-
         async function loadRanking() {
-  const { data, error } = await supabaseClient
+  const { data, error } = await db
     .from('scores')
     .select('*')
     .order('points', { ascending: false })
